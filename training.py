@@ -21,12 +21,15 @@ class TrainingSetup:
 		self.cfg = cfg
 		self.mp = mp
 		self.num_cpu = num_cpu  # only used for training
-		self.env_kwargs = dict(
-			coef=self.cfg["coef"],
-			dr=self.cfg["dr"],
-			# max_steps=self.cfg["model_kwargs"]["n_steps"],
-			**self.cfg["env_kwargs"],
-		)
+		if "model_xml" in self.cfg:
+			print(f"  with custom model XML {self.cfg['model_xml']}")
+		self.env_kwargs = {k: cfg[k] for k in cfg.keys() - {"model_kwargs"}}
+		# self.env_kwargs = dict(
+		# 	coef=self.cfg["coef"],
+		# 	dr=self.cfg["dr"],
+		# 	# max_steps=self.cfg["model_kwargs"]["n_steps"],
+		# 	**self.cfg["env_kwargs"],
+		# )
 
 	def load_model(self, env):
 		kwargs = self.cfg["model_kwargs"] | dict(
@@ -50,8 +53,10 @@ class TrainingSetup:
 		)
 
 	def eval_env(self):
+		# print("env_kwargs", self.env_kwargs)
 		self._eval_env = gym_env.BalanceEnv(**self.env_kwargs)
 		self._eval_env.render_mode = "human"
+		self._eval_env.debug_cmd = True
 
 		return Monitor(env=self._eval_env)
 
@@ -59,11 +64,13 @@ class TrainingSetup:
 		return EvalCallback(
 			self.eval_env(),
 			best_model_save_path=self.mp.best.parent,
+			n_eval_episodes=10,
 			deterministic=True,
 			eval_freq=5000,
-			callback_after_eval=StopTrainingOnNoModelImprovement(
-				max_no_improvement_evals=12, min_evals=20, verbose=1
-			),
+			warn=False,
+			# callback_after_eval=StopTrainingOnNoModelImprovement(
+			# 	max_no_improvement_evals=12, min_evals=20, verbose=1
+			# ),
 		)
 
 	class SaveProgress(BaseCallback):
@@ -83,8 +90,8 @@ class TrainingSetup:
 			total_timesteps=steps,
 			progress_bar=True,
 			callback=[
-				self.eval_callback(),
-				EveryNTimesteps(10000 * self.num_cpu, self.SaveProgress(self.mp)),
+				# self.eval_callback(),
+				# EveryNTimesteps(10000 * self.num_cpu, self.SaveProgress(self.mp)),
 			],
 		)
 		model.env.close()
@@ -93,6 +100,7 @@ class TrainingSetup:
 		eval_env = self.eval_env()
 		model = self.load_model(eval_env)
 		self._eval_env.debug = True
+		self._eval_env.dr.cmd_zero_prob = 0
 		mean, std = evaluate_policy(
 			model,
 			eval_env,
@@ -105,4 +113,5 @@ class TrainingSetup:
 		print(f"Evaluation result for {self.path} across {eps} episodes:")
 		print(f"  Mean reward: {mean:.2f} ± {std:.2f}")
 		self._eval_env.plot()
+		self._eval_env.close()
 		eval_env.close()
