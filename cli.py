@@ -4,13 +4,14 @@ import os
 import json
 import argparse
 import sys
+import math
 from pathlib import Path
 
 from config import configure
 from dataclasses import asdict
 
 os.environ["MUJOCO_GL"] = "egl"
-os.environ["OMP_NUM_THREADS"] = "24"
+os.environ["OMP_NUM_THREADS"] = os.environ.get("OMP_NUM_THREADS", "24")
 
 
 def save_model_info():
@@ -126,11 +127,9 @@ def match_model(specifier, check=True, _spec="best"):
 	model = model_info["models"][name]
 
 	if version is None:
-		version = max(model["versions"])
-	elif version not in model["versions"]:
-		sys.exit(
-			f"Model `{name}` has no version `{_ver(version)}`. Available versions: [ {', '.join(model['versions'])} ]"
-		)
+		version = float(max(model["configs"].keys(), key=lambda x: float(x)))
+	elif str(version) not in model["configs"]:
+		sys.exit(f"Model `{name}` has no version `{_ver(version)}`")
 
 	spec_path = resolve_spec(namever(name, version), spec, check=check)
 	return (name, version, spec_path)
@@ -139,10 +138,8 @@ def match_model(specifier, check=True, _spec="best"):
 def add_model(name, version=1, _input=None):
 	model = model_info["models"][name]
 
-	if version in model["versions"]:
+	if str(version) in model["configs"]:
 		raise Exception(f"Model `{name}` already has version `{_ver(version)}`")
-
-	model["versions"].append(version)
 
 	cfg = model_config(name, version, serialize=True)
 
@@ -161,7 +158,7 @@ def add_model(name, version=1, _input=None):
 
 def create(args):
 	if args.name not in model_info["models"]:
-		model_info["models"][args.name] = dict(versions=[], configs={})
+		model_info["models"][args.name] = dict(configs={})
 
 	add_model(args.name, args.version, args.input)
 	print(f"created model {namever(args.name, args.version)}")
@@ -172,6 +169,8 @@ def create(args):
 def _next(args):
 	iname, iver, ipath = match_model(args.name)
 	newver = iver + args.inc
+	if args.inc == 1:
+		newver = math.floor(iver) + args.inc
 	add_model(iname, newver, dict(input=namever(iname, iver), input_path=str(ipath)))
 	cfg = model_info["models"][iname]["configs"][_ver(iver)]
 	if "env_kwargs" in cfg:
@@ -273,6 +272,7 @@ if __name__ == "__main__":
 	ap_train = sp.add_parser("train")
 	ap_train.add_argument("name", nargs="?")
 	ap_train.add_argument("--count", "-c", default=16_000_000, type=int)
+	# ap_train.add_argument("--to", default=None, type=int)
 	ap_train.set_defaults(func=train)
 
 	ap_eval = sp.add_parser("eval")
