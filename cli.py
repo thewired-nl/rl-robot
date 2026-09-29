@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
+import sys
 
 import os
 import json
 import argparse
-import sys
 import math
 from pathlib import Path
 
-from config import configure
-from dataclasses import asdict
+sys.modules["tensorboard"] = None
+sys.modules["tensorflow"] = None
+
+from config import configure  # noqa: E402
+from dataclasses import asdict  # noqa: E402
 
 os.environ["MUJOCO_GL"] = "egl"
 os.environ["OMP_NUM_THREADS"] = os.environ.get("OMP_NUM_THREADS", "24")
