@@ -39,7 +39,7 @@ class BalanceEnv(gym.Env):
 		dr: DomainRandomization,
 		max_steps=10_000,
 		model_xml="robot.xml",
-		reward_norm=True,
+		reward_norm=False,
 	):
 		super().__init__()
 
@@ -236,7 +236,6 @@ class BalanceEnv(gym.Env):
 		# self.d.act2.ctrl = action[1] * -8
 
 		self.d.act1.ctrl = -action[0]  # invert
-		# self.d.act1.ctrl = action[0]
 		self.d.act2.ctrl = action[1]
 
 		# TODO: dr forces
@@ -435,8 +434,8 @@ class BalanceEnv(gym.Env):
 
 	def render(self):
 		if self._viewer is None:
+			# self._viewer = True
 			self._viewer = mjv.launch_passive(self.model, self.data)
-			# self._viewer.scn.flags[mj.mjtRndFlag.mjRND_SHADOW] = False
 
 			self._viewer.cam.trackbodyid = self.d.robot.id
 			self._viewer.cam.type = mj.mjtCamera.mjCAMERA_TRACKING
