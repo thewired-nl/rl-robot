@@ -20,7 +20,7 @@
 		<geom
 			contype="1"
 			conaffinity="1"
-      friction="0.8 0.005 0.0001"
+      friction="0.8 0.005 0.005"
 		/>
   </default>
 

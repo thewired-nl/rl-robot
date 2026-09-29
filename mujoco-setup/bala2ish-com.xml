@@ -1,0 +1,70 @@
+<mujoco model="balance robot">
+  <compiler angle="radian" meshdir="assembly_bala2ish/meshes/"/>
+
+  <option timestep="0.005" integrator="implicitfast"/>
+
+  <visual>
+    <map znear="0.001" zfar="10"/>
+    <scale contactwidth="0.1" contactheight="0.03"/>
+  </visual>
+
+  <default>
+    <geom friction="0.8 0.005 0.005"/>
+  </default>
+
+  <asset>
+    <texture type="2d" colorspace="auto" name="grid" builtin="checker" mark="edge" rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4" markrgb="0.2 0.3 0.4" width="300" height="300"/>
+    <material name="grid" texture="grid" texuniform="true" texrepeat="2 2"/>
+    <mesh name="chassis" file="chassis.stl"/>
+    <mesh name="sensor_imu" file="sensor_imu.stl"/>
+    <mesh name="wheel_1" file="Wheel.stl"/>
+    <mesh name="mark_wheel_1" file="mark_wheel.stl"/>
+    <mesh name="wheel" file="Wheel.stl"/>
+    <mesh name="mark_wheel" file="mark_wheel.stl"/>
+  </asset>
+
+  <worldbody>
+    <geom name="ground" size="200 200 0.1" type="plane" material="grid"/>
+    <light pos="0 0 100" dir="0 0 -1" ambient="0.4 0.4 0.4"/>
+    <body name="root">
+      <joint name="_root" type="free"/>
+      <body name="chassis">
+        <inertial pos="0 0 0.0395" mass="0.127" diaginertia="5.679e-05 5.4532e-05 5.8722e-05"/>
+        <geom name="geom_chassis" pos="0 0 0.0225" quat="1 0 0 0" type="mesh" rgba="0.8 0.8 0.901961 1" mesh="chassis"/>
+      
+        <body name="sensor_imu" pos="0.008 0.0225 0.0625">
+          <geom name="geom_sensor_imu" pos="-0.013 -0.007 -0.0416042" type="mesh" mass="0" rgba="0.972549 0.529412 0.00392157 1" mesh="sensor_imu"/>
+          <site name="site_sensor_imu" pos="0 0 0" size="0.001"/>
+        </body>
+        <body name="wheel_1" pos="-0.031 0 0.0225">
+          <joint name="joint_wheel_left" pos="0 0 0" axis="1 0 0" armature="4.5e-05" damping="0.001" frictionloss="0.001"/>
+          <geom name="geom_wheel_1" pos="0.02765 0 0.00685857" type="mesh" mass="0.017" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel_1"/>
+          <body name="mark_wheel_1" pos="-0.01415 0 0">
+            <geom name="geom_mark_wheel_1" pos="0.0418 0 0.00685857" type="mesh" mass="0" rgba="0.498039 0.498039 0.498039 1" mesh="mark_wheel_1"/>
+          </body>
+        </body>
+        <body name="wheel" pos="0.031 0 0.0225">
+          <joint name="joint_wheel_right" pos="0 0 0" axis="-1 0 0" armature="4.5e-05" damping="0.001" frictionloss="0.001"/>
+          <geom name="geom_wheel" pos="0.0418 0 0.00685857" type="mesh" mass="0.017" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel"/>
+          <body name="mark_wheel" pos="0.01415 3.75483e-08 0">
+            <geom name="geom_mark_wheel" pos="0.0418 0 0.00685857" quat="0.999624 0 0 -0.0274121" type="mesh" mass="0" rgba="0.498039 0.498039 0.498039 1" mesh="mark_wheel"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="act_wheel_left" joint="joint_wheel_left" ctrlrange="-1 1" gear="0.05 0 0 0 0 0"/>
+    <general name="act_wheel_right" joint="joint_wheel_right" ctrlrange="-1 1" gear="0.05 0 0 0 0 0"/>
+  </actuator>
+
+  <sensor>
+    <framequat objtype="site" objname="site_sensor_imu" name="imu_quat"/>
+    <accelerometer site="site_sensor_imu" name="imu_accel"/>
+    <gyro site="site_sensor_imu" name="imu_gyro"/>
+    <jointvel joint="joint_wheel_left" name="jointvel_wheel_left"/>
+    <jointvel joint="joint_wheel_right" name="jointvel_wheel_right"/>
+    <velocimeter site="site_sensor_imu" name="priv_vel"/>
+  </sensor>
+</mujoco>

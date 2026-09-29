@@ -16,6 +16,38 @@
             </material>
         </visual>
     </link>
+    <link name="mark_wheel">
+        <inertial>
+            <mass value="3.39412e-08" />
+            <origin xyz="-0.0003 2.74555e-20 0.01125" rpy="0 -0 0" />
+            <inertia ixx="1.03408e-12" ixy="0" ixz="0" iyy="1.01044e-12" iyz="0" izz="2.56789e-14" />
+        </inertial>
+        <visual>
+            <origin xyz="0.0418 -2.17403e-34 0.00685857" rpy="0 -0 0" />
+            <geometry>
+                <mesh filename="package://assembly_bala2ish/meshes/mark_wheel.stl" scale="1 1 1" />
+            </geometry>
+            <material name="0.498039_0.498039_0.498039_0.000000_0.000000">
+                <color rgba="0.498039 0.498039 0.498039 1" />
+            </material>
+        </visual>
+    </link>
+    <link name="mark_wheel_1">
+        <inertial>
+            <mass value="3.39412e-08" />
+            <origin xyz="-0.0003 2.74555e-20 0.01125" rpy="0 -0 0" />
+            <inertia ixx="1.03408e-12" ixy="0" ixz="0" iyy="1.01044e-12" iyz="0" izz="2.56789e-14" />
+        </inertial>
+        <visual>
+            <origin xyz="0.0418 -2.17403e-34 0.00685857" rpy="0 -0 0" />
+            <geometry>
+                <mesh filename="package://assembly_bala2ish/meshes/mark_wheel.stl" scale="1 1 1" />
+            </geometry>
+            <material name="0.498039_0.498039_0.498039_0.000000_0.000000">
+                <color rgba="0.498039 0.498039 0.498039 1" />
+            </material>
+        </visual>
+    </link>
     <link name="root" />
     <link name="sensor_imu">
         <inertial>
@@ -36,11 +68,11 @@
     <link name="wheel">
         <inertial>
             <mass value="0.0281308" />
-            <origin xyz="-0.007075 -8.36114e-19 -8.67362e-19" rpy="0 -0 0" />
+            <origin xyz="0.007075 -8.36114e-19 -1.73472e-18" rpy="0 -0 0" />
             <inertia ixx="7.1206e-06" ixy="0" ixz="0" iyy="4.02967e-06" iyz="0" izz="4.02967e-06" />
         </inertial>
         <visual>
-            <origin xyz="0.02765 0 0.00685857" rpy="0 -0 0" />
+            <origin xyz="0.0418 -2.17403e-34 0.00685857" rpy="0 -0 0" />
             <geometry>
                 <mesh filename="package://assembly_bala2ish/meshes/Wheel.stl" scale="1 1 1" />
             </geometry>
@@ -72,10 +104,22 @@
         <child link="chassis" />
     </joint>
     <joint name="fastened_2" type="fixed">
-        <origin xyz="0.008 0.0175 0.0625" rpy="0 -0 0" />
+        <origin xyz="0.008 0.0225 0.0625" rpy="0 -0 0" />
         <axis xyz="0 0 -1" />
         <parent link="chassis" />
         <child link="sensor_imu" />
+    </joint>
+    <joint name="fastened_3" type="fixed">
+        <origin xyz="-0.01415 2.17403e-34 3.46945e-18" rpy="-3.03858e-64 1.75162e-46 -8.75812e-47" />
+        <axis xyz="-1 -3.20732e-48 -2.1684e-16" />
+        <parent link="wheel_1" />
+        <child link="mark_wheel_1" />
+    </joint>
+    <joint name="fastened_4" type="fixed">
+        <origin xyz="0.01415 -2.17403e-34 3.46945e-18" rpy="2.73691e-48 2.1684e-16 -3.14159" />
+        <axis xyz="-1 -3.20732e-48 -2.1684e-16" />
+        <parent link="wheel" />
+        <child link="mark_wheel" />
     </joint>
     <joint name="wheel_left" type="continuous">
         <origin xyz="-0.031 3.85118e-32 0.0225" rpy="-2.5241e-48 -1.2326e-32 5.25487e-46" />
@@ -84,8 +128,8 @@
         <child link="wheel_1" />
     </joint>
     <joint name="wheel_right" type="continuous">
-        <origin xyz="0.031 -1.73472e-18 0.0225" rpy="-3.14159 1.91478e-96 -3.14159" />
-        <axis xyz="1 -0 -0" />
+        <origin xyz="0.031 5.98699e-49 0.0225" rpy="-6.74701e-80 2.1684e-16 -3.20732e-48" />
+        <axis xyz="-1 -3.20732e-48 -2.1684e-16" />
         <parent link="chassis" />
         <child link="wheel" />
     </joint>
