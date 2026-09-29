@@ -31,6 +31,7 @@ def get_mj_model(name="robot.xml") -> mj.MjModel:
 class BalanceEnv(gym.Env):
 	render_sleep = True
 	debug = False
+	debug_cmd = False
 
 	def __init__(
 		self,
@@ -38,6 +39,7 @@ class BalanceEnv(gym.Env):
 		dr: DomainRandomization,
 		max_steps=10_000,
 		model_xml="robot.xml",
+		reward_norm=True,
 	):
 		super().__init__()
 
@@ -49,6 +51,8 @@ class BalanceEnv(gym.Env):
 		self.observation_space = spaces.Box(
 			low=-1 * obs_scale, high=obs_scale, dtype=np.float32
 		)
+
+		self.reward_norm = reward_norm
 
 		self.model = get_mj_model(model_xml)
 		self.data = mj.MjData(self.model)
@@ -110,11 +114,10 @@ class BalanceEnv(gym.Env):
 		# reset mujoco and run simulation forward without actually 'stepping' to fill sensor values
 		mj.mj_resetData(self.model, self.data)
 
-		# Impart an initial angular velocity around the y axis so the agent learns to recover
-		# Note: qvel[4] = wy (rad/s)
+		# Impart an initial angular velocity around the x axis so the agent learns to recover
 		self.data.qvel[3] += self.np_random.uniform(-0.5, 0.5)
-		# and x axis
-		self.data.qvel[4] += self.np_random.uniform(-0.5, 0.5)
+		# and y axis
+		# self.data.qvel[4] += self.np_random.uniform(-0.5, 0.5)
 
 		mj.mj_forward(self.model, self.data)
 
@@ -131,9 +134,15 @@ class BalanceEnv(gym.Env):
 
 		self._cmd_vel = 0.0
 		self._cmd_yaw = 0.0
-		if self.np_random.random() >= self.dr.cmd_zero_prob:
-			self._cmd_vel = float(self.np_random.uniform(*self.dr.cmd_vel_range))
-			self._cmd_yaw = float(self.np_random.uniform(*self.dr.cmd_yaw_range))
+
+		if self.dr.cmd_zero_prob < 1:
+			if self.np_random.random() >= self.dr.cmd_zero_prob:
+				self._cmd_vel = float(self.np_random.uniform(*self.dr.cmd_vel_range))
+				self._cmd_yaw = float(self.np_random.uniform(*self.dr.cmd_yaw_range))
+				if self.debug_cmd:
+					print(
+						f"  random vel cmd {(self._cmd_vel * self.coef.max_vel):.3f} m/s, yaw cmd {(self._cmd_yaw * self.coef.max_yaw_rate):.3f} rad/s"
+					)
 
 		self._cmd_zero_pos = np.array([self.d.robot.xpos[0], self.d.robot.xpos[1]])
 
@@ -161,10 +170,14 @@ class BalanceEnv(gym.Env):
 
 		# privileged velocity info relies on pitch, without added noise
 		vel = self.d.priv_vel.data  # local frame
-		vel_ = r.apply(vel)  # global frame
-		self.vel_ = vel_
+		# FIXED: should be using vel in local frame / but mix Y/Z vels based on pitch
+		# vel_ = r.apply(vel)  # global frame
+		# self.vel_ = vel_
 
-		self.vel_actual = vel_[0]
+		rYZ = Rotation.from_euler("x", eul[0], degrees=False)
+		self.vel_ = rYZ.apply(vel)
+
+		self.vel_actual = self.vel_[1]
 
 		# w, x, y, z = self.d.imu_quat.data
 		# pitch = math.asin(max(-1.0, min(1.0, 2.0 * (w * y - z * x))))
@@ -183,15 +196,12 @@ class BalanceEnv(gym.Env):
 		if self.dr.sensor_noise_std_dev > 0.0:
 			self._pitch += self.np_random.normal(0.0, self.dr.sensor_noise_std_dev)
 			self._pitch_rate += self.np_random.normal(0.0, self.dr.sensor_noise_std_dev)
-			# self._yaw += self.np_random.normal(0.0, self.dr.sensor_noise_std_dev)
 			self._yaw_rate += self.np_random.normal(0.0, self.dr.sensor_noise_std_dev)
 
 		obs = np.array(
 			[
 				self._pitch,
 				self._pitch_rate,
-				# self._yaw,
-				# 0,
 				self._yaw_rate,
 				self._cmd_vel,
 				self._cmd_yaw,
@@ -263,6 +273,28 @@ class BalanceEnv(gym.Env):
 
 		# TODO: dr command
 
+		if self.dr.cmd_resample_prob > 0:
+			if self.np_random.random() < self.dr.cmd_resample_prob:
+				if self.np_random.random() >= self.dr.cmd_zero_prob:
+					self._cmd_vel = float(
+						self.np_random.uniform(*self.dr.cmd_vel_range)
+					)
+					self._cmd_yaw = float(
+						self.np_random.uniform(*self.dr.cmd_yaw_range)
+					)
+					if self.debug_cmd:
+						print(
+							f"  resample vel cmd {(self._cmd_vel * self.coef.max_vel):.3f} m/s, yaw cmd {(self._cmd_yaw * self.coef.max_yaw_rate):.3f} rad/s"
+						)
+				else:
+					if self.debug_cmd:
+						print("  resample vel/yaw zero")
+					self._cmd_vel = 0
+					self._cmd_yaw = 0
+					self._cmd_zero_pos = np.array(
+						[self.d.robot.xpos[0], self.d.robot.xpos[1]]
+					)
+
 		mj.mj_step(self.model, self.data)
 		self._step += 1
 
@@ -284,11 +316,17 @@ class BalanceEnv(gym.Env):
 		)
 
 		reward = 0.0
+		reward_count = 0
 
 		for name in rewards:
 			coef = self.coef[f"reward_{name}"]
+			if coef != 0:
+				reward_count += 1
 			rewards[name] *= coef
 			reward += rewards[name]
+
+		if self.reward_norm:
+			reward = reward / reward_count
 
 		penalties = dict(
 			pitch=self._pitch**2,
@@ -298,7 +336,7 @@ class BalanceEnv(gym.Env):
 			# 	+ 0.5 * (self.vel_[1] ** 2)  # yvel
 			# 	+ 0.5 * (self.vel_[2] ** 2)  # zvel
 			# ),
-			yaw=(self._yaw_rate - yaw_rate_target) ** 2,
+			# yaw=(self._yaw_rate - yaw_rate_target) ** 2,
 			action=np.sum(action**2),
 			action_smoothness=np.sum((action - self._prev_action) ** 2),
 			position=0,
@@ -346,9 +384,12 @@ class BalanceEnv(gym.Env):
 		# 	-((self._yaw - yaw_target) ** 2) / self.coef.reward_yaw_sigma
 		# )
 
-		terminated = (
-			abs(self._pitch) > self.coef.thresh_tip
-		) is True  # convert np bool to python bool to satisfy check_env
+		# convert np bool to python bool to satisfy check_env
+		terminated = bool(abs(self._pitch) > self.coef.thresh_tip)
+
+		if penalty > 2:
+			terminated = True
+
 		truncated = self._step >= self.max_steps
 
 		if self.debug and self._step % 50 == 0:
@@ -360,7 +401,7 @@ class BalanceEnv(gym.Env):
 				f"  yaw: {self._yaw:.3f} rad, yaw_rate: {self._yaw_rate:.3f} rad/s, target: {yaw_rate_target:.3f} (cmd {self._cmd_yaw:.3f})"
 			)
 			print(
-				f"  vel: {self.vel_[0]:.3f} {self.vel_[1]:.3f} {self.vel_[2]:.3f} m/s"
+				f"  vel: {self.vel_actual:.3f} m/s ({self.vel_[0]:.3f} {self.vel_[1]:.3f} {self.vel_[2]:.3f}) m/s, target {vel_target:.3f} m/s (cmd {self._cmd_vel:.3f})"
 			)
 			print(
 				f"  jvel: {self.d.jvel1.data[0]:.2f} {self.d.jvel2.data[0]:.2f} rad/s"
