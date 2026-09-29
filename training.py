@@ -24,7 +24,7 @@ class TrainingSetup:
 		self.env_kwargs = dict(
 			coef=self.cfg["coef"],
 			dr=self.cfg["dr"],
-			max_steps=self.cfg["model_kwargs"]["n_steps"],
+			# max_steps=self.cfg["model_kwargs"]["n_steps"],
 			**self.cfg["env_kwargs"],
 		)
 
@@ -93,12 +93,16 @@ class TrainingSetup:
 		eval_env = self.eval_env()
 		model = self.load_model(eval_env)
 		self._eval_env.debug = True
-		evaluate_policy(
+		mean, std = evaluate_policy(
 			model,
 			eval_env,
 			n_eval_episodes=eps,
 			deterministic=True,
 			render=True,
 		)
+
+		print()
+		print(f"Evaluation result for {self.path} across {eps} episodes:")
+		print(f"  Mean reward: {mean:.2f} ± {std:.2f}")
 		self._eval_env.plot()
 		eval_env.close()
