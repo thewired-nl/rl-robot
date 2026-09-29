@@ -12,63 +12,18 @@ import matplotlib.pyplot as plt
 
 import mujoco.viewer as mjv
 
-
-class Subscriptable:
-	def __getitem__(self, key):
-		return getattr(self, key)
+from config import Coefficients, DomainRandomization
 
 
-class DomainRandomization(Subscriptable):
-	sensor_noise_std_dev: float = 0.0
-	# action_delay_steps: int = 0
-	# action_delay_random: bool = False
-	motor_noise_scale: float = 0.0
-	push_prob: float = 0.00
-	push_max_force: float = 0.0
-	push_max_ticks: int = 0
-	shift_weight_mm: float = 0.0
-	# mass_scale_range: tuple = (1.0, 1.0)
-	# friction_scale_range: tuple = (1.0, 1.0)
-	# motor_gain_range: tuple = (1.0, 1.0)
-	# ridge_prob: float = 0.0
-	# ridge_torque_max_nm: float = 0.0
-	cmd_vel_range: tuple = (0.0, 0.0)
-	cmd_yaw_range: tuple = (0.0, 0.0)
-	cmd_zero_prob: float = 0.0
-	# cmd_resample_prob: float = 0.0
-
-
-class Coefficients(Subscriptable):
-	reward_alive = 1.0
-
-	reward_yaw = 0.0
-	reward_yaw_sigma = 0.5
-	reward_vel = 0.0
-	reward_vel_sigma = 0.1
-
-	penalty_pitch = 0.0
-	penalty_pitch_rate = 0.0
-	penalty_vel = 0.0
-	penalty_yaw = 0.0
-
-	penalty_action = 0.0
-	penalty_action_smoothness = 0.0
-	penalty_position = 0.0
-
-	# terminates run
-	thresh_tip = 30.0  # degrees
-
-	# commands
-	max_yaw_rate = 2.0  # rad/s
-	max_vel = 0.4  # m/s
-
-
-def get_mj_model() -> mj.MjModel:
+def get_mj_model(name="robot.xml") -> mj.MjModel:
 	# load MuJoCo model
 	cwd = Path(".")
-	mujoco_file = cwd / "00-mujoco-setup" / "robot.xml"
+	mujoco_file = cwd / "mujoco-setup" / name
+	# mujoco_file = cwd / "mujoco-setup" / "robot-bala2.xml"
 	if not mujoco_file.is_file():
-		raise f"{mujoco_file} does not exist, run 00-mujoco-setup/import-urdf.ipynb first"
+		raise Exception(
+			f"{mujoco_file} does not exist, run 00-mujoco-setup/import-urdf.ipynb first"
+		)
 
 	return mj.MjModel.from_xml_path(str(mujoco_file))
 
@@ -77,7 +32,13 @@ class BalanceEnv(gym.Env):
 	render_sleep = True
 	debug = False
 
-	def __init__(self, coef: Coefficients, dr: DomainRandomization):
+	def __init__(
+		self,
+		coef: Coefficients,
+		dr: DomainRandomization,
+		max_steps=10_000,
+		model_xml="robot.xml",
+	):
 		super().__init__()
 
 		# two parameters, each motor from -1.0 to 1.0
@@ -89,16 +50,16 @@ class BalanceEnv(gym.Env):
 			low=-1 * obs_scale, high=obs_scale, dtype=np.float32
 		)
 
-		self.model = get_mj_model()
+		self.model = get_mj_model(model_xml)
 		self.data = mj.MjData(self.model)
 
 		self.m = SimpleNamespace(
 			ground=self.model.geom("ground"),  # to modify friction
 			robot=self.model.body("root"),  # to modify mass, apply forces
-			lipos=self.model.body("lipos"),  # to modify position offset
+			# lipos=self.model.body("lipos"),  # to modify position offset
 			# to modify gearing
-			act1=self.model.actuator("act_wheel_left"),
-			act2=self.model.actuator("act_wheel_right"),
+			# act1=self.model.actuator("act_wheel_left"),
+			# act2=self.model.actuator("act_wheel_right"),
 		)
 
 		self.d = SimpleNamespace(
@@ -113,12 +74,12 @@ class BalanceEnv(gym.Env):
 		)
 
 		# values before domain randomization
-		self._orig = SimpleNamespace(
-			mRobot=self.m.robot.mass,
-			fGround=self.m.ground.friction,
-			gAct1=self.m.act1.gear,
-			gAct2=self.m.act2.gear,
-		)
+		# self._orig = SimpleNamespace(
+		# 	mRobot=self.m.robot.mass,
+		# 	fGround=self.m.ground.friction,
+		# 	gAct1=self.m.act1.gear,
+		# 	gAct2=self.m.act2.gear,
+		# )
 
 		if coef.thresh_tip > np.pi:
 			coef.thresh_tip = math.radians(coef.thresh_tip)
@@ -129,8 +90,7 @@ class BalanceEnv(gym.Env):
 		self._step = 0
 		self._viewer = None
 		self._step_start = 0
-
-		self.max_steps = 10_000
+		self.max_steps = max_steps
 
 		self.forces = []
 
@@ -183,6 +143,7 @@ class BalanceEnv(gym.Env):
 
 		# plotting
 		self.eul = [0.0, 0.0, 0.0]
+		self.vel_ = [0.0, 0.0, 0.0]
 		self.vel_actual = 0
 
 		return self._get_obs(), {}
@@ -199,13 +160,23 @@ class BalanceEnv(gym.Env):
 		eul = r.as_euler("xyz", degrees=False, suppress_warnings=True)
 
 		# privileged velocity info relies on pitch, without added noise
-		vel = self.d.priv_vel.data
-		self.vel_actual = math.cos(eul[0]) * vel[1] + math.sin(eul[0]) * vel[2]
+		vel = self.d.priv_vel.data  # local frame
+		vel_ = r.apply(vel)  # global frame
+		self.vel_ = vel_
+
+		self.vel_actual = vel_[0]
+
+		# w, x, y, z = self.d.imu_quat.data
+		# pitch = math.asin(max(-1.0, min(1.0, 2.0 * (w * y - z * x))))
 
 		self._pitch = eul[0]
 		self._pitch_rate = gyro[0]
 		self._yaw = eul[2]
 		self._yaw_rate = gyro[2]
+
+		# print(
+		# 	f"EUL {math.degrees(eul[0]):.4f}, {math.degrees(eul[1]):.4f}, {math.degrees(eul[2]):.4f}"
+		# )
 
 		self.eul = eul
 
@@ -220,6 +191,7 @@ class BalanceEnv(gym.Env):
 				self._pitch,
 				self._pitch_rate,
 				# self._yaw,
+				# 0,
 				self._yaw_rate,
 				self._cmd_vel,
 				self._cmd_yaw,
@@ -239,8 +211,8 @@ class BalanceEnv(gym.Env):
 		self._step_start = time.time()
 		# TODO: dr action delay?
 
-		action[0] = self._rescale(action[0])
-		action[1] = self._rescale(action[1])
+		# action[0] = self._rescale(action[0])
+		# action[1] = self._rescale(action[1])
 
 		if self.dr.motor_noise_scale > 0:
 			noise = self.np_random.uniform(
@@ -250,11 +222,12 @@ class BalanceEnv(gym.Env):
 
 		action = np.clip(action, -1.0, 1.0)
 
-		self.d.act1.ctrl = action[0] * 8
-		self.d.act2.ctrl = action[1] * -8
-		# print(self._step, self.d.act1.ctrl, self.d.act2.ctrl)
-		# self.d.act1.ctrl = 1
-		# self.d.act2.ctrl = 1
+		# self.d.act1.ctrl = action[0] * 8
+		# self.d.act2.ctrl = action[1] * -8
+
+		self.d.act1.ctrl = -action[0]  # invert
+		# self.d.act1.ctrl = action[0]
+		self.d.act2.ctrl = action[1]
 
 		# TODO: dr forces
 		if self.dr.push_prob > 0 and self.dr.push_max_ticks > 0:
@@ -320,7 +293,11 @@ class BalanceEnv(gym.Env):
 		penalties = dict(
 			pitch=self._pitch**2,
 			pitch_rate=self._pitch_rate**2,
-			vel=(self.vel_actual - vel_target) ** 2,
+			# vel=(
+			# 	(self.vel_actual - vel_target) ** 2  # xvel
+			# 	+ 0.5 * (self.vel_[1] ** 2)  # yvel
+			# 	+ 0.5 * (self.vel_[2] ** 2)  # zvel
+			# ),
 			yaw=(self._yaw_rate - yaw_rate_target) ** 2,
 			action=np.sum(action**2),
 			action_smoothness=np.sum((action - self._prev_action) ** 2),
@@ -380,21 +357,28 @@ class BalanceEnv(gym.Env):
 			print(
 				f"  yaw: {self._yaw:.3f} rad, yaw_rate: {self._yaw_rate:.3f} rad/s, target: {yaw_rate_target:.3f} (cmd {self._cmd_yaw:.3f})"
 			)
+			print(
+				f"  vel: {self.vel_[0]:.3f} {self.vel_[1]:.3f} {self.vel_[2]:.3f} m/s"
+			)
+			print(
+				f"  jvel: {self.d.jvel1.data[0]:.2f} {self.d.jvel2.data[0]:.2f} rad/s"
+			)
+			print(f"  actuators: [ {action[0]:.2f}, {action[1]:.2f} ]")
 			print(f"  pos: [{x_pos:.3f}, {y_pos:.3f}] m")
 			print(
-				"penalties:",
+				"  penalties:",
 				", ".join(
 					[f"{name}: {p:.4f}" for name, p in penalties.items() if p != 0]
 				),
 			)
 			print(
-				"reward:",
+				"  reward:",
 				", ".join(
 					[f"{name}: {r:.4f}" for name, r in rewards.items() if r != 0]
 				),
 			)
 			print(
-				f"reward {reward:.3f}, penalty {penalty:.3f}, sum {(reward - penalty):.3f}"
+				f"  reward {reward:.3f}, penalty {penalty:.3f}, sum {(reward - penalty):.3f}"
 			)
 			print()
 
@@ -418,13 +402,14 @@ class BalanceEnv(gym.Env):
 			self._viewer.cam.azimuth = 45
 			self._viewer.cam.elevation = -25
 
-		self.eulX.append(math.degrees(self.eul[0]))
-		self.eulY.append(math.degrees(self.eul[1]))
-		self.eulZ.append(math.degrees(self.eul[2]))
-		self.m1.append(self._prev_action[0])
-		self.m2.append(self._prev_action[1])
-		self.vels.append(self.vel_actual)
-		self.eulTicks.append(self._step)
+		if self._step > 0:
+			self.eulX.append(math.degrees(self.eul[0]))
+			self.eulY.append(math.degrees(self.eul[1]))
+			self.eulZ.append(math.degrees(self.eul[2]))
+			self.m1.append(self._prev_action[0])
+			self.m2.append(self._prev_action[1])
+			self.vels.append(self.vel_actual)
+			self.eulTicks.append(self._step)
 
 		self._viewer.sync()
 
@@ -435,20 +420,23 @@ class BalanceEnv(gym.Env):
 
 	def plot(self):
 		fig, ax1 = plt.subplots()
-		ax1.plot(self.eulTicks, self.vels, label="velocity (m/s)", color="tab:purple")
+		ax1.plot(
+			self.eulTicks, self.vels, label="forward velocity (m/s)", color="tab:purple"
+		)
+		ax1.set_ylim(-3, 3)
 		ax2 = ax1.twinx()
 		ax2.set_xlabel("step")
 		ax2.set_ylabel("angle (deg)")
 		ax2.plot(self.eulTicks, self.eulX, label="pitch", color="tab:red")
 		ax2.plot(self.eulTicks, self.eulY, label="roll", color="tab:green")
 		ax2.plot(self.eulTicks, self.eulZ, label="yaw", color="tab:blue")
-		# ax1.set_ylim(-1, 1)
+		ax2.set_ylim(-180, 180)
 		# ax1.set_ylabel("control")
 		# ax1.plot(self.eulTicks, self.m1, label="motor 1")
 		# ax1.plot(self.eulTicks, self.m2, label="motor 2")
 		fig.tight_layout()
 		ax1.legend(loc="upper left")
-		ax2.legend()
+		ax2.legend(loc="upper right")
 		plt.ioff()
 		plt.show()
 

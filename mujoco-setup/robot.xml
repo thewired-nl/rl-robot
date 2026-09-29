@@ -1,5 +1,5 @@
 <mujoco model="balance robot">
-  <compiler angle="radian" meshdir="assembly_simplified/meshes/"/>
+  <compiler angle="radian" meshdir="assembly_bala2ish/meshes/"/>
 
   <option timestep="0.005" integrator="implicitfast"/>
 
@@ -15,47 +15,38 @@
   <asset>
     <texture type="2d" colorspace="auto" name="grid" builtin="checker" mark="edge" rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4" markrgb="0.2 0.3 0.4" width="300" height="300"/>
     <material name="grid" texture="grid" texuniform="true" texrepeat="2 2"/>
-    <mesh name="motor_base" file="Motor_base.stl"/>
-    <mesh name="lipos" file="Lipos.stl"/>
-    <mesh name="electronics" file="Electronics.stl"/>
+    <mesh name="chassis" file="chassis.stl"/>
     <mesh name="sensor_imu" file="sensor_imu.stl"/>
+    <mesh name="wheel_1" file="Wheel.stl"/>
     <mesh name="wheel" file="Wheel.stl"/>
-    <mesh name="wheel_2" file="Wheel_2.stl"/>
   </asset>
 
   <worldbody>
     <geom name="ground" size="200 200 0.1" type="plane" material="grid"/>
     <light pos="0 0 100" dir="0 0 -1" ambient="0.4 0.4 0.4"/>
-    <body name="root" pos="0 0 0.005">
+    <body name="root">
       <joint name="_root" type="free"/>
-      <site name="site_root" pos="0 0 0.0218" size="0.001"/>
-      <body name="motor_base">
-        <geom name="geom_motor_base" pos="0 0 0.0286586" quat="1 0 0 0" type="mesh" mass="0.0448498" rgba="0.647059 0.647059 0.647059 1" mesh="motor_base"/>
-        <body name="lipos" pos="0 0 0.0401586">
-          <geom name="geom_lipos" pos="0 0.00015 -0.0116" quat="1 0 0 0" type="mesh" mass="0.040025" rgba="0.901961 0.901961 0.901961 1" mesh="lipos"/>
-          <body name="electronics" pos="0 0 0.01525">
-            <geom name="geom_electronics" pos="0 0 -0.02685" quat="1 0 0 0" type="mesh" mass="0.032" rgba="0.647059 0.647059 0.647059 1" mesh="electronics"/>
-            <body name="sensor_imu" pos="0.013 0.007 0.0162">
-              <geom name="geom_sensor_imu" pos="-0.013 -0.007 -0.04305" type="mesh" mass="2.744e-09" rgba="0.972549 0.529412 0.00392157 1" mesh="sensor_imu"/>
-              <site name="site_sensor_imu" pos="0 0 0" size="0.001"/>
-            </body>
-          </body>
+      <body name="chassis">
+        <geom name="geom_chassis" pos="0 0 0.0225" quat="1 0 0 0" type="mesh" mass="0.127" rgba="0.8 0.8 0.901961 1" mesh="chassis"/>
+        <body name="sensor_imu" pos="0.008 0.0175 0.0625">
+          <geom name="geom_sensor_imu" pos="-0.013 -0.007 -0.0416042" type="mesh" mass="0" rgba="0.972549 0.529412 0.00392157 1" mesh="sensor_imu"/>
+          <site name="site_sensor_imu" pos="0 0 0" size="0.001"/>
         </body>
-        <body name="wheel" pos="-0.02765 0 0.0218">
-          <joint name="joint_wheel_left" pos="0 0 0" axis="-1 0 0"/>
-          <geom name="geom_wheel" size="0.0218 0.0038" pos="-0.0038 0 0" quat="0.707107 0 0.707107 0" type="cylinder" mass="0.01" rgba="0.972549 0.529412 0.00392157 1"/>
+        <body name="wheel_1" pos="-0.031 0 0.0225">
+          <joint name="joint_wheel_left" pos="0 0 0" axis="1 0 0" armature="4.5e-05" damping="0.001" frictionloss="0.001"/>
+          <geom name="geom_wheel_1" pos="0.02765 0 0.00685857" type="mesh" mass="0.017" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel_1"/>
         </body>
-        <body name="wheel_2" pos="0.02765 0 0.0218">
-          <joint name="joint_wheel_right" pos="0 0 0" axis="1 0 0"/>
-          <geom name="geom_wheel_2" size="0.0218 0.0038" pos="0.0038 0 0" quat="0.707107 0 0.707107 0" type="cylinder" mass="0.01" rgba="0.972549 0.529412 0.00392157 1"/>
+        <body name="wheel" pos="0.046 0 0.0225">
+          <joint name="joint_wheel_right" pos="0 0 0" axis="1 0 0" armature="4.5e-05" damping="0.001" frictionloss="0.001"/>
+          <geom name="geom_wheel" pos="0.02765 0 0.00685857" type="mesh" mass="0.017" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel"/>
         </body>
       </body>
     </body>
   </worldbody>
 
   <actuator>
-    <general name="act_wheel_left" joint="joint_wheel_left" ctrlrange="-8 8" forcelimited="true" forcerange="-0.0238048 0.0238048" actlimited="false" actearly="true" actdim="1" dyntype="dcmotor" dynprm="0.000213695 0 0 0 0 0 0 0 0 0" gaintype="dcmotor" biastype="dcmotor" gainprm="12.1669 0.158699"/>
-    <general name="act_wheel_right" joint="joint_wheel_right" ctrlrange="-8 8" forcelimited="true" forcerange="-0.0238048 0.0238048" actlimited="false" actearly="true" actdim="1" dyntype="dcmotor" dynprm="0.000213695 0 0 0 0 0 0 0 0 0" gaintype="dcmotor" biastype="dcmotor" gainprm="12.1669 0.158699"/>
+    <general name="act_wheel_left" joint="joint_wheel_left" ctrlrange="-1 1" gear="0.05 0 0 0 0 0"/>
+    <general name="act_wheel_right" joint="joint_wheel_right" ctrlrange="-1 1" gear="0.05 0 0 0 0 0"/>
   </actuator>
 
   <sensor>
@@ -64,6 +55,6 @@
     <gyro site="site_sensor_imu" name="imu_gyro"/>
     <jointvel joint="joint_wheel_left" name="jointvel_wheel_left"/>
     <jointvel joint="joint_wheel_right" name="jointvel_wheel_right"/>
-    <velocimeter site="site_root" name="priv_vel"/>
+    <velocimeter site="site_sensor_imu" name="priv_vel"/>
   </sensor>
 </mujoco>
