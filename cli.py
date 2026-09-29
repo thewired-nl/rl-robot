@@ -72,8 +72,10 @@ def resolve_spec(namever: str, spec="best", check=True):
 def model_config(name, version, with_kwargs=False, serialize=False):
 	cfg = configure(name, version)
 	if with_kwargs:
-		cfg["env_kwargs"] = model_info["models"][name]["configs"][_ver(version)].get(
-			"env_kwargs", dict()
+		cfg.update(
+			model_info["models"][name]["configs"][_ver(version)].get(
+				"env_kwargs", dict()
+			)
 		)
 
 	if not serialize:
@@ -230,6 +232,17 @@ def rm(args):
 	save_model_info()
 
 
+def check_env(args):
+	from gym_env import BalanceEnv
+	from stable_baselines3.common.env_checker import check_env
+
+	name, ver, path = match_model(args.name, check=False)
+	cfg = model_config(name, ver, with_kwargs=True)
+	del cfg["model_kwargs"]
+	env = BalanceEnv(**cfg)
+	check_env(env)
+
+
 if __name__ == "__main__":
 	ap = argparse.ArgumentParser()
 	sp = ap.add_subparsers(required=True, help="subcommand help")
@@ -268,6 +281,10 @@ if __name__ == "__main__":
 	ap_rm = sp.add_parser("rm")
 	ap_rm.add_argument("name")
 	ap_rm.set_defaults(func=rm)
+
+	ap_check_env = sp.add_parser("check_env")
+	ap_check_env.add_argument("name", nargs="?")
+	ap_check_env.set_defaults(func=check_env)
 
 	args = ap.parse_args()
 	args.func(args)

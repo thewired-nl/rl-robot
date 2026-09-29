@@ -346,7 +346,9 @@ class BalanceEnv(gym.Env):
 		# 	-((self._yaw - yaw_target) ** 2) / self.coef.reward_yaw_sigma
 		# )
 
-		terminated = abs(self._pitch) > self.coef.thresh_tip
+		terminated = (
+			abs(self._pitch) > self.coef.thresh_tip
+		) is True  # convert np bool to python bool to satisfy check_env
 		truncated = self._step >= self.max_steps
 
 		if self.debug and self._step % 50 == 0:
