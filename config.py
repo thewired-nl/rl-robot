@@ -25,8 +25,8 @@ class DomainRandomization(Subscriptable):
 	# ridge_torque_max_nm: float = 0.0
 	cmd_vel_range: tuple = (0.0, 0.0)
 	cmd_yaw_range: tuple = (0.0, 0.0)
-	cmd_zero_prob: float = 0.0
-	# cmd_resample_prob: float = 0.0
+	cmd_zero_prob: float = 1.0
+	cmd_resample_prob: float = 0.0
 
 
 @dataclass
@@ -47,12 +47,10 @@ class Coefficients(Subscriptable):
 	penalty_action_smoothness: float = 0.0
 	penalty_position: float = 0.0
 
-	#: float terminates run
 	thresh_tip: float = 30.0  # degrees
 
-	#: float commands
 	max_yaw_rate: float = 2.0  # rad/s
-	max_vel: float = 0.4  # m/s
+	max_vel: float = 0.5  # m/s
 
 
 def configure(name, version):
@@ -86,14 +84,14 @@ def configure(name, version):
 		coef.reward_vel = 1.0
 		coef.reward_vel_sigma = 0.1
 		coef.reward_yaw_sigma = 0.5
-		coef.max_vel = 0.5
 
-	# if version >= 2.1:
-	# 	coef.penalty_yaw = 0.01
+		# doesn't make sense here, unused since no commands are given
+		coef.max_vel = 0.5
 
 	if version >= 3:
 		dr.cmd_vel_range = (-0.5, 0.5)
 		dr.cmd_zero_prob = 0.5
+		coef.max_vel = 0.5
 
 		# Prevent getting stuck in local maximum
 		model_kwargs["ent_coef"] = 0.01  # encourage more exploration
@@ -104,5 +102,29 @@ def configure(name, version):
 		dr.cmd_yaw_range = (-0.5, 0.5)
 		coef.yaw_sigma = 0.1
 		coef.max_yaw_rate = 1.5
+
+	if version >= 5:
+		dr.cmd_yaw_range = (-1, 1)
+		dr.cmd_resample_prob = 0.005
+
+	if version >= 6:
+		# observation noise and action delay
+		pass
+
+	if version >= 7:
+		# motor noise and random pushes
+		pass
+
+	if version >= 8:
+		# mass and friction randomization
+		pass
+
+	if version >= 9:
+		# add motor gain randomization
+		pass
+
+	if version >= 10:
+		# random axle torques
+		pass
 
 	return dict(coef=coef, dr=dr, model_kwargs=model_kwargs)
