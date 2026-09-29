@@ -19,7 +19,13 @@ import gym_env
 
 
 class TrainingSetup:
-	def __init__(self, path: Path, cfg, mp, num_cpu=32):
+	def __init__(
+		self,
+		path: Path,
+		cfg,
+		mp,
+		num_cpu=int(os.environ.get("SLURM_CPUS_PER_TASK", 32)),
+	):
 		self.path = path
 		self.cfg = cfg
 		self.mp = mp
@@ -36,7 +42,9 @@ class TrainingSetup:
 
 	def load_model(self, env):
 		kwargs = self.cfg["model_kwargs"] | dict(
-			env=env, tensorboard_log=self.mp.tensorboard
+			env=env,
+			tensorboard_log=None,
+			# tensorboard_log=self.mp.tensorboard # broken
 		)
 
 		if self.path.is_file():
@@ -83,7 +91,7 @@ class TrainingSetup:
 
 		def _on_step(self):
 			_file = self._path(self.n_calls)
-			print("saving model in-progress snapshot", _file)
+			print("saving model in-progress snapshot", _file, flush=True)
 			self.model.save(_file)
 			return True
 
@@ -93,8 +101,8 @@ class TrainingSetup:
 			total_timesteps=steps,
 			progress_bar=True,
 			callback=[
-				# self.eval_callback(),
-				# EveryNTimesteps(10000 * self.num_cpu, self.SaveProgress(self.mp)),
+				self.eval_callback(),
+				EveryNTimesteps(10000 * self.num_cpu, self.SaveProgress(self.mp)),
 			],
 		)
 		model.env.close()
@@ -103,6 +111,7 @@ class TrainingSetup:
 		eval_env = self.eval_env()
 		model = self.load_model(eval_env)
 		self._eval_env.debug = True
+		# self._eval_env.render_sleep = False
 		self._eval_env.dr.cmd_zero_prob = 0
 		mean, std = evaluate_policy(
 			model,
