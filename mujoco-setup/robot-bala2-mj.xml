@@ -22,12 +22,14 @@
     <light pos="0 0 1.5" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
 
     <body name="root" pos="0 0 0.0225">
-      <inertial pos="0 0 0.017" mass="0.127" diaginertia="5.679e-05 5.4532e-05 5.8722e-05"/>
       <joint name="_root" type="free"/>
+      <body name="motor_base">
+      <inertial pos="0 0 0.017" mass="0.127" diaginertia="5.679e-05 5.4532e-05 5.8722e-05"/>
       
       <geom name="chassis_geom" type="mesh" rgba="0.87 0.23 0.16 1" mesh="chassis_mesh"/>
       <geom size="0.001 0.01 0.005" pos="0.027 0 0.02" type="box" contype="0" conaffinity="0" rgba="0 1 0 1"/>
       <site name="imu_site" pos="-0.008 0.0225 0.04" quat="0.707107 0 0 0.707107" size="0.003 0.003 0.00035" type="box" rgba="0 0 1 1"/>
+      </body>
       <body name="wheel" pos="0 0.04 0">
         <inertial pos="0 0 0" mass="0.017" diaginertia="2.611e-06 4.303e-06 2.611e-06"/>
         <joint name="left_wheel_joint" pos="0 0 0" axis="0 1 0" armature="4.5e-05" damping="0.001" frictionloss="0.001"/>

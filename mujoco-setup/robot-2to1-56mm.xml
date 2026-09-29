@@ -31,8 +31,8 @@
     <body name="root">
       <joint name="_root" type="free"/>
       <body name="motor_base">
-        <geom name="geom_motor_base" pos="0 0 0.0293586" quat="1 0 0 0" type="mesh" mass="0.0422448" rgba="0.647059 0.647059 0.647059 1" mesh="motor_base"/>
-        <body name="lipos" pos="0 0 0.0395128">
+        <geom name="geom_motor_base" pos="0 0 0.0348586" quat="1 0 0 0" type="mesh" mass="0.0422448" rgba="0.647059 0.647059 0.647059 1" mesh="motor_base"/>
+        <body name="lipos" pos="0 0 0.0450128">
           <geom name="geom_lipos" pos="0 0.00015 -0.0101542" quat="1 0 0 0" type="mesh" mass="0.040025" rgba="0.901961 0.901961 0.901961 1" mesh="lipos"/>
           <body name="electronics" pos="0 0 0.01525">
             <geom name="geom_electronics" pos="0 0 -0.0254042" quat="1 0 0 0" type="mesh" mass="0.032" rgba="0.647059 0.647059 0.647059 1" mesh="electronics"/>
@@ -44,16 +44,16 @@
         </body>
       </body>
       <body name="sketch_wheelbase__1_">
-        <body name="wheel_1" pos="-0.02765 0 0.0225">
+        <body name="wheel_1" pos="-0.02765 0 0.028">
           <joint name="joint_wheel_left" pos="0 0 0" axis="1 0 0" armature="0.00018" damping="0.001" frictionloss="0.001"/>
-          <geom name="geom_wheel_1" pos="0.02765 0 0.00685857" quat="0.999624 0.0274121 0 0" type="mesh" mass="0.014" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel_1"/>
+          <geom name="geom_wheel_1" pos="0.02765 0 0.00685857" quat="0.999624 0.0274121 0 0" type="mesh" mass="0.02" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel_1"/>
           <body name="mark_wheel_1" pos="-0.01415 0 0">
             <geom name="geom_mark_wheel_1" pos="0.0418 0 0.00685857" quat="0.999624 -0.0274121 0 0" type="mesh" mass="0" rgba="0.498039 0.498039 0.498039 1" mesh="mark_wheel_1"/>
           </body>
         </body>
-        <body name="wheel" pos="0.02765 0 0.0225">
+        <body name="wheel" pos="0.02765 0 0.028">
           <joint name="joint_wheel_right" pos="0 0 0" axis="-1 0 0" armature="0.00018" damping="0.001" frictionloss="0.001"/>
-          <geom name="geom_wheel" pos="0.0418 0 0.00685857" type="mesh" mass="0.014" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel"/>
+          <geom name="geom_wheel" pos="0.0418 0 0.00685857" type="mesh" mass="0.02" rgba="0.972549 0.529412 0.00392157 1" mesh="wheel"/>
           <body name="mark_wheel" pos="0.01415 0 0">
             <geom name="geom_mark_wheel" pos="0.0418 0 0.00685857" quat="0.999624 0 0 -0.0274121" type="mesh" mass="0" rgba="0.498039 0.498039 0.498039 1" mesh="mark_wheel"/>
           </body>
@@ -63,8 +63,8 @@
   </worldbody>
 
   <actuator>
-    <general name="act_wheel_left" joint="joint_wheel_left" ctrlrange="-1 1" gear="0.1 0 0 0 0 0"/>
-    <general name="act_wheel_right" joint="joint_wheel_right" ctrlrange="-1 1" gear="0.1 0 0 0 0 0"/>
+    <general name="act_wheel_left" joint="joint_wheel_left" ctrlrange="-1 1" gear="0.075 0 0 0 0 0"/>
+    <general name="act_wheel_right" joint="joint_wheel_right" ctrlrange="-1 1" gear="0.075 0 0 0 0 0"/>
   </actuator>
 
   <sensor>
