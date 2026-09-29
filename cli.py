@@ -22,13 +22,13 @@ def save_model_info():
 		print(e)
 
 
-try:
-	with open("models.json", "r") as f:
-		model_info = json.load(f)
-except Exception as e:
-	print(e)
+m = Path("models.json")
+if not m.is_file():
 	model_info = dict(models=dict())
 	save_model_info()
+
+with open("models.json", "r") as f:
+	model_info = json.load(f)
 
 
 def _ver(ver):
@@ -95,7 +95,7 @@ def model_config(name, version, with_kwargs=False, serialize=False):
 	)
 
 
-def match_model(specifier, check=True, _spec=None):
+def match_model(specifier, check=True, _spec="best"):
 	if specifier is None:
 		specifier = model_info.get("active", None)
 	if specifier is None:
@@ -106,9 +106,7 @@ def match_model(specifier, check=True, _spec=None):
 	# `name-2.1` (specific version)
 	# `name-2.1:latest` (latest progress, specific version)
 	name, *spec = specifier.split(":", 1)
-	spec = spec[0] if spec else "best"
-	if _spec:
-		spec = _spec
+	spec = spec[0] if spec else _spec
 	nameparts = name.split("-")
 	version = None
 	if len(nameparts) >= 2:
@@ -166,13 +164,22 @@ def create(args):
 		model_info["models"][args.name] = dict(versions=[], configs={})
 
 	add_model(args.name, args.version, args.input)
+	print(f"created model {namever(args.name, args.version)}")
+
+	# FIXME: create with input is basically _next, but now doesn't copy env_kwargs cfg
 
 
 def _next(args):
 	iname, iver, ipath = match_model(args.name)
-	add_model(
-		iname, iver + args.inc, dict(input=namever(iname, iver), input_path=str(ipath))
-	)
+	newver = iver + args.inc
+	add_model(iname, newver, dict(input=namever(iname, iver), input_path=str(ipath)))
+	cfg = model_info["models"][iname]["configs"][_ver(iver)]
+	if "env_kwargs" in cfg:
+		model_info["models"][iname]["configs"][_ver(newver)]["env_kwargs"] = cfg[
+			"env_kwargs"
+		]
+		save_model_info()
+	print(f"{namever(iname, iver)} →  {namever(iname, newver)}")
 
 
 def train(args):
@@ -184,6 +191,11 @@ def train(args):
 		model_info["active"] = _namever
 		save_model_info()
 	print("training", _namever, "for", args.count, "steps")
+	if "env_kwargs" in model_info["models"][name]["configs"][_ver(ver)]:
+		print(
+			"with modified env_kwargs:",
+			model_info["models"][name]["configs"][_ver(ver)]["env_kwargs"],
+		)
 	cfg = model_config(name, ver, with_kwargs=True)
 
 	mp = ModelPaths(_namever)
@@ -254,7 +266,7 @@ if __name__ == "__main__":
 	ap_create.set_defaults(func=create)
 
 	ap_next = sp.add_parser("next")
-	ap_next.add_argument("--name")
+	ap_next.add_argument("name", nargs="?")
 	ap_next.add_argument("--inc", default=1, type=float)
 	ap_next.set_defaults(func=_next)
 
