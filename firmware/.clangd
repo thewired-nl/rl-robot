@@ -1,0 +1,8 @@
+CompileFlags:
+  # CompilationDatabase: .pio/
+  Add: [-mlong-calls, -ferror-limit=0, -isysroot=/home/f0x/.platformio/packages/toolchain-xtensa-esp32s3]
+  Remove: [-fno-tree-switch-conversion, -mtext-section-literals, -mlongcalls, -fstrict-volatile-bitfields]
+UseTab: Always
+# IndentWidth: 2
+# TabWidth: 2
+BasedOnStyle: Google

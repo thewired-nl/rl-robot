@@ -1,0 +1,5 @@
+.pio/
+.direnv/
+compile_commands.json
+src/secrets.cpp
+.vscode/settings.json
